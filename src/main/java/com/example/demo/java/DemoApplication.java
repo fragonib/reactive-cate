@@ -5,10 +5,10 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.time.Duration;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -34,26 +34,26 @@ public class DemoApplication {
         .take(5);
   }
 
-  public CompletableFuture<List<FavouriteDetail>> futures(UserId userId) {
+  public CompletableFuture<Stream<FavouriteDetail>> futures(UserId userId) {
     return userService.getFavoritesF(userId)
+        .orTimeout(800, TimeUnit.MILLISECONDS)
         .exceptionallyCompose((throwable) -> cacheService.cachedFavoritesForF(userId))
-        .thenCompose((favouritesIds) -> composeMany(favouritesIds.stream().map(favoriteService::getDetailsF).collect(Collectors.toList())))
+        .thenCompose((favouritesIds) -> composeMany(favouritesIds.map(favoriteService::getDetailsF)))
         .thenCompose((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
-        .thenApply((favourites) -> favourites.stream().limit(5).collect(Collectors.toList()));
+        .thenApply((favourites) -> favourites.limit(5));
   }
 
-  static <T> CompletableFuture<List<T>> composeMany(List<CompletableFuture<T>> futures) {
-    return futures.stream()
+  static <T> CompletableFuture<Stream<T>> composeMany(Stream<CompletableFuture<T>> futures) {
+    return futures
         .map(f -> f.thenApply(Stream::of))
         .reduce((a, b) -> a.thenCompose(xs -> b.thenApply(ys -> Stream.concat(xs, ys))))
-        .map(f -> f.thenApply(s -> s.collect(Collectors.toList())))
-        .orElse(completedFuture(emptyList()));
+        .orElse(completedFuture(Stream.empty()));
   }
 
-  static <T> CompletableFuture<List<T>> defaultIfEmpty(List<T> mainStream, Supplier<CompletableFuture<List<T>>> fallbackStream) {
+  static <T> CompletableFuture<Stream<T>> defaultIfEmpty(Stream<T> mainStream, Supplier<CompletableFuture<Stream<T>>> fallbackStream) {
     Iterator<T> iterator = mainStream.iterator();
     if (iterator.hasNext()) {
-      return completedFuture(StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false).collect(Collectors.toList()));
+      return completedFuture(StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false));
     } else {
       return fallbackStream.get();
     }
@@ -68,7 +68,7 @@ class SuggestionService {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<List<FavouriteDetail>> getSuggestionsF() {
+  CompletableFuture<Stream<FavouriteDetail>> getSuggestionsF() {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
@@ -90,7 +90,7 @@ class UserService {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<List<FavouriteId>> getFavoritesF(UserId userId) {
+  CompletableFuture<Stream<FavouriteId>> getFavoritesF(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
@@ -103,7 +103,7 @@ class CacheService {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<List<FavouriteId>> cachedFavoritesForF(UserId userId) {
+  CompletableFuture<Stream<FavouriteId>> cachedFavoritesForF(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
