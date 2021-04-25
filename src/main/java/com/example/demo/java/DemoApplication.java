@@ -23,7 +23,7 @@ public class DemoApplication {
   public Flux<FavouriteDetail> reactive(UserId userId) {
     return userService.getFavorites(userId)
         .timeout(Duration.ofMillis(800))
-        .onErrorResume((t) -> cacheService.cachedFavoritesFor(userId))
+        .onErrorResume((throwable) -> cacheService.cachedFavoritesFor(userId))
         .flatMap(favoriteService::getDetails)
         .switchIfEmpty(suggestionService.getSuggestions())
         .take(5);
@@ -31,10 +31,10 @@ public class DemoApplication {
 
   public CompletableFuture<Stream<FavouriteDetail>> futures(UserId userId) {
     return userService.getFavoritesF(userId)
-        .exceptionallyComposeAsync((th) -> cacheService.cachedFavoritesForF(userId))
-        .thenApplyAsync((uuids) -> uuids.map(favoriteService::getDetailsF))
-        .thenApply((fv) -> defaultIfEmpty(fv, suggestionService::getSuggestionsF))
-        .thenApply((fv) -> fv.limit(5));
+        .exceptionallyComposeAsync((throwable) -> cacheService.cachedFavoritesForF(userId))
+        .thenApplyAsync((favouritesIds) -> favouritesIds.map(favoriteService::getDetailsF))
+        .thenApply((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
+        .thenApply((favourites) -> favourites.limit(5));
   }
 
   static <T> Stream<T> defaultIfEmpty(Stream<T> mainStream, Supplier<Stream<T>> fallbackStream) {
