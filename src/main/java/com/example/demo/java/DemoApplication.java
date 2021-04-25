@@ -37,12 +37,12 @@ public class DemoApplication {
   public CompletableFuture<List<FavouriteDetail>> futures(UserId userId) {
     return userService.getFavoritesF(userId)
         .exceptionallyCompose((throwable) -> cacheService.cachedFavoritesForF(userId))
-        .thenCompose((favouritesIds) -> flat(favouritesIds.stream().map(favoriteService::getDetailsF).collect(Collectors.toList())))
-        .thenApply((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
+        .thenCompose((favouritesIds) -> composeMany(favouritesIds.stream().map(favoriteService::getDetailsF).collect(Collectors.toList())))
+        .thenCompose((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
         .thenApply((favourites) -> favourites.stream().limit(5).collect(Collectors.toList()));
   }
 
-  static <T> CompletableFuture<List<T>> flat(List<CompletableFuture<T>> futures) {
+  static <T> CompletableFuture<List<T>> composeMany(List<CompletableFuture<T>> futures) {
     return futures.stream()
         .map(f -> f.thenApply(Stream::of))
         .reduce((a, b) -> a.thenCompose(xs -> b.thenApply(ys -> Stream.concat(xs, ys))))
@@ -50,11 +50,10 @@ public class DemoApplication {
         .orElse(completedFuture(emptyList()));
   }
 
-  static <T> List<T> defaultIfEmpty(List<T> mainStream, Supplier<List<T>> fallbackStream) {
+  static <T> CompletableFuture<List<T>> defaultIfEmpty(List<T> mainStream, Supplier<CompletableFuture<List<T>>> fallbackStream) {
     Iterator<T> iterator = mainStream.iterator();
     if (iterator.hasNext()) {
-      return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false).collect(
-          Collectors.toList());
+      return completedFuture(StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false).collect(Collectors.toList()));
     } else {
       return fallbackStream.get();
     }
@@ -69,7 +68,7 @@ class SuggestionService {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  List<FavouriteDetail> getSuggestionsF() {
+  CompletableFuture<List<FavouriteDetail>> getSuggestionsF() {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
