@@ -1,6 +1,5 @@
 package com.example.demo.java;
 
-import static java.util.Collections.emptyList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.time.Duration;
@@ -10,15 +9,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@SpringBootApplication
-public class DemoApplication {
+
+public class CompareAsyncs {
 
   private final UserService userService = new UserService();
   private final CacheService cacheService = new CacheService();
@@ -38,7 +35,8 @@ public class DemoApplication {
     return userService.getFavoritesF(userId)
         .orTimeout(800, TimeUnit.MILLISECONDS)
         .exceptionallyCompose((throwable) -> cacheService.cachedFavoritesForF(userId))
-        .thenCompose((favouritesIds) -> composeMany(favouritesIds.map(favoriteService::getDetailsF)))
+        .thenCompose(
+            (favouritesIds) -> composeMany(favouritesIds.map(favoriteService::getDetailsF)))
         .thenCompose((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
         .thenApply((favourites) -> favourites.limit(5));
   }
@@ -50,10 +48,12 @@ public class DemoApplication {
         .orElse(completedFuture(Stream.empty()));
   }
 
-  static <T> CompletableFuture<Stream<T>> defaultIfEmpty(Stream<T> mainStream, Supplier<CompletableFuture<Stream<T>>> fallbackStream) {
+  static <T> CompletableFuture<Stream<T>> defaultIfEmpty(Stream<T> mainStream,
+      Supplier<CompletableFuture<Stream<T>>> fallbackStream) {
     Iterator<T> iterator = mainStream.iterator();
     if (iterator.hasNext()) {
-      return completedFuture(StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false));
+      return completedFuture(
+          StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false));
     } else {
       return fallbackStream.get();
     }
