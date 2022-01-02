@@ -10,7 +10,7 @@ public class Composing {
 
   Flux<EncodedLink> gatherLinks(Collection<String> paths) {
     return Flux.fromIterable(paths)
-        .map(path -> composeUrl(path))
+        .map(this::composeUrl)
         .flatMap((url) -> findLinks(url))
         .map(this::encodeLink);
   }
@@ -18,8 +18,11 @@ public class Composing {
   Flux<Link> findLinks(URL url) {
     return Mono.just(url)
         .map(this::requestContent)
-        .flatMapMany(content -> extractLinks(content));
+        .flatMapMany(content -> extractLinks(content))
+        .map(this::escapeHTML);
   }
+
+  private <V> V escapeHTML(Link link) { return null; }
 
   private URL composeUrl(String path) {
     return null;

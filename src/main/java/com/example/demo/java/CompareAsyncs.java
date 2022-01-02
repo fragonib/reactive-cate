@@ -22,7 +22,7 @@ public class CompareAsyncs {
   private final FavoriteService favoriteService = new FavoriteService();
   private final SuggestionService suggestionService = new SuggestionService();
 
-  public Flux<FavouriteDetail> reactive(UserId userId) {
+  public Flux<Item> reactive(UserId userId) {
     return userService.getFavorites(userId)
         .timeout(Duration.ofMillis(800))
         .onErrorResume((throwable) -> cacheService.cachedFavoritesFor(userId))
@@ -31,12 +31,11 @@ public class CompareAsyncs {
         .take(5);
   }
 
-  public CompletableFuture<Stream<FavouriteDetail>> futures(UserId userId) {
+  public CompletableFuture<Stream<Item>> futures(UserId userId) {
     return userService.getFavoritesF(userId)
         .orTimeout(800, TimeUnit.MILLISECONDS)
         .exceptionallyCompose((throwable) -> cacheService.cachedFavoritesForF(userId))
-        .thenCompose(
-            (favouritesIds) -> composeMany(favouritesIds.map(favoriteService::getDetailsF)))
+        .thenCompose((favouritesIds) -> composeMany(favouritesIds.map(favoriteService::getDetailsF)))
         .thenCompose((favourites) -> defaultIfEmpty(favourites, suggestionService::getSuggestionsF))
         .thenApply((favourites) -> favourites.limit(5));
   }
@@ -64,33 +63,33 @@ public class CompareAsyncs {
 
 class SuggestionService {
 
-  Flux<FavouriteDetail> getSuggestions() {
+  Flux<Item> getSuggestions() {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<Stream<FavouriteDetail>> getSuggestionsF() {
+  CompletableFuture<Stream<Item>> getSuggestionsF() {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
 
 class FavoriteService {
 
-  Mono<FavouriteDetail> getDetails(FavouriteId id) {
+  Mono<Item> getDetails(Look id) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<FavouriteDetail> getDetailsF(FavouriteId id) {
+  CompletableFuture<Item> getDetailsF(Look id) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
 
 class UserService {
 
-  Flux<FavouriteId> getFavorites(UserId userId) {
+  Flux<Look> getFavorites(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<Stream<FavouriteId>> getFavoritesF(UserId userId) {
+  CompletableFuture<Stream<Look>> getFavoritesF(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
@@ -99,16 +98,16 @@ class UserService {
 
 class CacheService {
 
-  Flux<FavouriteId> cachedFavoritesFor(UserId userId) {
+  Flux<Look> cachedFavoritesFor(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 
-  CompletableFuture<Stream<FavouriteId>> cachedFavoritesForF(UserId userId) {
+  CompletableFuture<Stream<Look>> cachedFavoritesForF(UserId userId) {
     throw new IllegalArgumentException("Not yet implemented");
   }
 }
 
-class FavouriteDetail {
+class Item {
 
   private UUID id;
 }
@@ -118,7 +117,7 @@ class UserId {
   private UUID id;
 }
 
-class FavouriteId {
+class Look {
 
   private UUID id;
 }
